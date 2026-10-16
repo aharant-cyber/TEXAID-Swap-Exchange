@@ -20,7 +20,7 @@
       <div class="inline-block bg-red-600 text-white font-black px-6 py-2 rounded-lg text-2xl tracking-wider shadow-lg">TEXAID</div>
       <h1 class="text-3xl font-extrabold text-white">Swapbody-Trail</h1>
       <p class="text-slate-300 text-sm leading-relaxed">
-        Willkommen in der Logistik-Zentrale! Verwalte 10 deutsche Großräume, steuere deine Fahrer, halte den 24-Stunden-Tausch-Turnus für die 8t-Wechselbrücken ein und bewältige dynamische Event-Herausforderungen. Verhindere Container-Überläufe, um saftige Kommunalstrafen zu vermeiden!
+        Willkommen in der Logistik-Zentrale! Verwalte 10 deutsche Großräume mit gemischten Teams aus Männern und Frauen, reagiere auf regionale Besonderheiten, Lieferengpässe bei Wechselbrücken und bewältige die privaten Herausforderungen deines Personals.
       </p>
       
       <div class="text-left space-y-1">
@@ -168,9 +168,23 @@
   </div>
 
   <script>
-    const LOCATIONS = ["Ulm", "Ravensburg", "Burgthann", "Augsburg", "Schweinfurt", "Berlin", "Eggebek", "Erfurt", "Windsbach", "Northeim"];
-    const FIRST_NAMES = ["Maximilian", "Stefan", "Andreas", "Michael", "Christian", "Thomas", "Markus", "Florian", "Daniel", "Kevin", "Tobias", "Lukas", "Jan", "Sebastian", "Dennis"];
+    const LOCATIONS = [
+      { name: "Ulm", region: "Baden-Württemberg (Donautal)" },
+      { name: "Ravensburg", region: "Oberschwaben" },
+      { name: "Burgthann", region: "Mittelfranken (Bayern)" },
+      { name: "Augsburg", region: "Bayern (Schwaben)" },
+      { name: "Schweinfurt", region: "Unterfranken" },
+      { name: "Berlin", region: "Metropolregion Berlin/Brandenburg" },
+      { name: "Eggebek", region: "Schleswig-Holstein (Flensburg-Land)" },
+      { name: "Erfurt", region: "Thüringen (Zentrum)" },
+      { name: "Windsbach", region: "Fränkisches Seenland" },
+      { name: "Northeim", region: "Südniedersachsen" }
+    ];
+    
+    const MALE_FIRST_NAMES = ["Maximilian", "Stefan", "Andreas", "Michael", "Christian", "Thomas", "Markus", "Florian", "Daniel", "Kevin", "Tobias", "Lukas", "Jan", "Sebastian", "Dennis"];
+    const FEMALE_FIRST_NAMES = ["Sabine", "Laura", "Sarah", "Julia", "Melanie", "Sandra", "Katharina", "Jessica", "Nadine", "Claudia", "Lisa", "Anna", "Stefanie", "Vanessa", "Christina"];
     const LAST_NAMES = ["Müller", "Schmidt", "Schneider", "Fischer", "Weber", "Meyer", "Wagner", "Becker", "Schulz", "Hoffmann", "Schäfer", "Koch", "Bauer", "Richter"];
+    
     const MOTIVATIONS = [
       { label: "Hochmotiviert", mult: 1.3 },
       { label: "Zuverlässig", mult: 1.0 },
@@ -209,9 +223,10 @@
       gameState.isPaused = false;
       gameState.stats = { totalRevenue: 0, totalPenalties: 0, totalWages: 0, totalSwaps: 0 };
 
-      gameState.hubs = LOCATIONS.map((name, idx) => ({
+      gameState.hubs = LOCATIONS.map((loc, idx) => ({
         id: idx,
-        name: name,
+        name: loc.name,
+        region: loc.region,
         fill: Math.floor(Math.random() * 2000),
         status: "SAMMELN",
         swapTimer: 0,
@@ -224,9 +239,18 @@
     }
 
     function createStaff() {
-      const name = `${FIRST_NAMES[Math.floor(Math.random()*FIRST_NAMES.length)]} ${LAST_NAMES[Math.floor(Math.random()*LAST_NAMES.length)]}`;
+      const isFemale = Math.random() < 0.35;
+      const firstNames = isFemale ? FEMALE_FIRST_NAMES : MALE_FIRST_NAMES;
+      const name = `${firstNames[Math.floor(Math.random()*firstNames.length)]} ${LAST_NAMES[Math.floor(Math.random()*LAST_NAMES.length)]}`;
       const mot = MOTIVATIONS[Math.floor(Math.random()*MOTIVATIONS.length)];
-      return { name, motivation: mot.label, speedMult: mot.mult };
+      return { 
+        name, 
+        gender: isFemale ? 'w' : 'm', 
+        motivation: mot.label, 
+        speedMult: mot.mult,
+        status: "active", 
+        statusNote: "Im Einsatz"
+      };
     }
 
     function buildStaticDOM() {
@@ -239,11 +263,14 @@
         card.innerHTML = `
           <div>
             <div class="flex justify-between items-center mb-1">
-              <h3 class="font-bold text-white text-base">${hub.name}</h3>
+              <div>
+                <h3 class="font-bold text-white text-base">${hub.name}</h3>
+                <span class="text-[10px] text-slate-400">${hub.region}</span>
+              </div>
               <span id="hub-badge-${hub.id}" class="px-2 py-0.5 rounded text-xs font-bold bg-green-900/50 text-green-400 border border-green-700">Sammeln</span>
             </div>
-            <div class="flex justify-between text-xs text-slate-400 mb-2">
-              <span>Personal: <span id="hub-staff-count-${hub.id}" class="text-slate-200">2</span> Fahrer</span>
+            <div class="flex justify-between text-xs text-slate-400 mb-2 mt-2">
+              <span>Fahrer heute aktiv: <span id="hub-active-staff-${hub.id}" class="font-bold text-green-400">2</span> / <span id="hub-total-staff-${hub.id}" class="text-slate-200">2</span></span>
               <span id="hub-swap-status-${hub.id}" class="font-mono text-amber-400">Turnus aktiv</span>
             </div>
 
@@ -286,11 +313,18 @@
         const bar = document.getElementById(`hub-bar-${hub.id}`);
         const badge = document.getElementById(`hub-badge-${hub.id}`);
         const swapStatus = document.getElementById(`hub-swap-status-${hub.id}`);
-        const staffCount = document.getElementById(`hub-staff-count-${hub.id}`);
+        const activeStaffCount = document.getElementById(`hub-active-staff-${hub.id}`);
+        const totalStaffCount = document.getElementById(`hub-total-staff-${hub.id}`);
         const swapBtn = document.getElementById(`hub-swap-btn-${hub.id}`);
 
+        const activeStaff = hub.staff.filter(s => s.status === 'active').length;
+
         if(weightText) weightText.innerText = `${hub.fill.toLocaleString()} / 8.000 kg (Max 9.5t)`;
-        if(staffCount) staffCount.innerText = hub.staff.length;
+        if(activeStaffCount) {
+          activeStaffCount.innerText = activeStaff;
+          activeStaffCount.className = activeStaff === 0 ? "font-bold text-red-400" : "font-bold text-green-400";
+        }
+        if(totalStaffCount) totalStaffCount.innerText = hub.staff.length;
 
         if(bar) {
           const pct = Math.min(100, (hub.fill / 9500) * 100);
@@ -311,6 +345,13 @@
             swapBtn.innerText = "Tausch angemeldet...";
             swapBtn.disabled = true;
             swapBtn.className = "w-full bg-slate-700 text-slate-400 font-bold py-2 rounded text-xs cursor-not-allowed";
+          } else if(hub.status === "SWAP_DELAYED") {
+            badge.innerText = "Engpass!";
+            badge.className = "px-2 py-0.5 rounded text-xs font-bold bg-purple-900 text-purple-200 border border-purple-500 animate-pulse";
+            swapStatus.innerText = `Warte auf Brücke...`;
+            swapBtn.innerText = "Firma liefert verzögert";
+            swapBtn.disabled = true;
+            swapBtn.className = "w-full bg-purple-950 text-purple-400 font-bold py-2 rounded text-xs cursor-not-allowed";
           } else {
             badge.innerText = "Sammeln";
             badge.className = "px-2 py-0.5 rounded text-xs font-bold bg-green-900/50 text-green-400 border border-green-700";
@@ -325,11 +366,17 @@
 
     function requestSwap(id) {
       const hub = gameState.hubs[id];
-      if(hub.status === "SWAP_PENDING") return;
+      if(hub.status === "SWAP_PENDING" || hub.status === "SWAP_DELAYED") return;
 
-      hub.status = "SWAP_PENDING";
-      hub.swapTimer = 24;
-      log(`🚚 [${hub.name}] Wechselbrückentausch angemeldet. Abholung & Verwiegung in 24 Stunden.`);
+      // 30% Chance auf Brücken-Mangel durch Spedition
+      if(Math.random() < 0.30) {
+        hub.status = "SWAP_DELAYED";
+        log(`⏳ [${hub.name}] Lieferengpass! Die Spedition hat aktuell keine freien Wechselbrücken vorrätig. Der Tausch verzögert sich.`);
+      } else {
+        hub.status = "SWAP_PENDING";
+        hub.swapTimer = 24;
+        log(`🚚 [${hub.name}] Wechselbrückentausch angemeldet. Abholung & Verwiegung in 24 Stunden.`);
+      }
       updateUI();
     }
 
@@ -345,7 +392,13 @@
 
       gameState.hubs.forEach(hub => {
         if(hub.status === "SAMMELN") {
-          let totalSpeed = hub.staff.reduce((acc, s) => acc + s.speedMult, 0);
+          const activeDrivers = hub.staff.filter(s => s.status === 'active');
+          let totalSpeed = activeDrivers.reduce((acc, s) => acc + s.speedMult, 0);
+          
+          if (activeDrivers.length === 0) {
+            totalSpeed = 0; 
+          }
+
           const baseRate = 50 + Math.floor(Math.random() * 30);
           const collected = Math.round(baseRate * totalSpeed);
           hub.fill = Math.min(9500, hub.fill + collected);
@@ -357,6 +410,15 @@
           }
         }
 
+        if(hub.status === "SWAP_DELAYED") {
+          // Chance, dass die Brücke nach einer Weile geliefert wird
+          if(Math.random() < 0.25) {
+            hub.status = "SWAP_PENDING";
+            hub.swapTimer = 18; // Dauert etwas länger durch den Engpass
+            log(`📦 [${hub.name}] Spedition meldet: Wechselbrücke ist nun verfügbar und auf dem Weg! Tausch in 18h.`);
+          }
+        }
+
         if(hub.status === "SWAP_PENDING") {
           hub.swapTimer--;
           if(hub.swapTimer <= 0) {
@@ -365,7 +427,7 @@
         }
       });
 
-      if(Math.random() < 0.12) {
+      if(Math.random() < 0.14) {
         triggerProceduralEvent();
       }
 
@@ -412,9 +474,17 @@
       const wages = totalStaffCount * 150;
       gameState.money -= wages;
       gameState.stats.totalWages += wages;
-      log(`💸 Tägliche Lohnkosten: -${wages} € (${totalStaffCount} Mitarbeiter).`);
+      log(`💸 Tägliche Lohnkosten: -${wages} € (${totalStaffCount} Mitarbeiter im Vertrag).`);
 
       gameState.hubs.forEach(h => {
+        h.staff.forEach(s => {
+          if(s.status !== 'active') {
+            s.status = 'active';
+            s.statusNote = 'Im Einsatz';
+            log(`✅ [${h.name}] ${s.name} hat den Dienst wieder aufgenommen.`);
+          }
+        });
+
         if(h.status === "OVERFLOW") {
           const fine = 400 * h.overflowDays;
           gameState.money -= fine;
@@ -437,26 +507,107 @@
     }
 
     const EVENT_TEMPLATES = [
-      { cat: "Wetter", title: "Starkregen & Wassereinbruch", desc: "In {city} drängt Wasser in die Container. Die Textilien drohen zu verschimmeln.", opt1: "Trocknungs-Trupp anfordern (-250 €)", act1: (h) => { gameState.money -= 250; log(`☔ [${h.name}] Trocknung bezahlt (-250 €).`); }, opt2: "Nasse Ware als Restmüll aussortieren (-800 kg)", act2: (h) => { h.fill = Math.max(0, h.fill - 800); log(`🗑️ [${h.name}] 800kg feuchte Ware entsorgt.`); } },
-      { cat: "Vandalismus", title: "Graffiti & Sachbeschädigung", desc: "Vandalen haben die Kleidercontainer in {city} beschmiert und aufgebrochen.", opt1: "Sofort-Reinigung beauftragen (-350 €)", act1: (h) => { gameState.money -= 350; log(`✨ [${h.name}] Graffiti beseitigt (-350 €).`); }, opt2: "Ignorieren", act2: (h) => { h.fill = Math.max(0, h.fill - 300); log(`⚠️ [${h.name}] Sachschaden hingenommen.`); } },
-      { cat: "Logistik", title: "Autobahn-Vollsperrung", desc: "Ein schwerer Unfall blockiert die Zufahrtswege für den LKW in {city}.", opt1: "Umleitung nehmen", act1: (h) => { if(h.status === "SWAP_PENDING") h.swapTimer += 6; log(`🚗 [${h.name}] Umleitung genommen (+6h Verzögerung).`); }, opt2: "Express-Maut zahlen (-400 €)", act2: (h) => { gameState.money -= 400; log(`⚡ [${h.name}] Express-Maut bezahlt (-400 €).`); } },
-      { cat: "Personal", title: "Mitarbeiter-Erkrankung", desc: "Ein Fahrer in {city} hat sich krankgemeldet.", opt1: "Aushilfe einspringen lassen (-150 €)", act1: (h) => { gameState.money -= 150; log(`🏥 [${h.name}] Aushilfe organisiert.`); }, opt2: "Unterbesetzt fahren", act2: (h) => { h.fill = Math.max(0, h.fill - 200); log(`🤒 [${h.name}] Unterbesetzt gefahren.`); } },
-      { cat: "Spenden", title: "Großzügige Vereins-Spendenwelle", desc: "Ein lokaler Sportverein in {city} hat eine große Altkleidersammlung durchgeführt!", opt1: "Container sofort leeren / Gutschreiben (+1.200 kg)", act1: (h) => { h.fill = Math.min(9500, h.fill + 1200); log(`🎉 [${h.name}] +1.200 kg Extra-Spenden erhalten!`); }, opt2: "Kooperation starten (+600 kg & Bonus)", act2: (h) => { h.fill = Math.min(9500, h.fill + 600); gameState.money += 200; log(`🤝 [${h.name}] Kooperation erfolgreich (+600 kg, +200 €).`); } }
+      // Private Leben Events
+      { 
+        cat: "Privatleben", 
+        title: "Familiäres Notfall-Dilemma", 
+        desc: "Ein/e Fahrer/in in {city} meldet sich mit einer privaten Familienkrise (Kinderbetreuung / Pflegefall) und bittet dringend um Freistellung für heute.", 
+        opt1: "Freistellen / Urlaub gewähren (Fahrer fällt heute aus)", 
+        act1: (h, staff) => { 
+          staff.status = 'personal_crisis'; 
+          staff.statusNote = 'Familienkrise (Freigestellt)';
+          log(`👨‍👩‍👧 [${h.name}] ${staff.name} wurde für heute wegen einer Familienkrise freigestellt und fällt als aktive Fahrkraft aus.`); 
+        }, 
+        opt2: "Auf Schicht bestehen (Motivation sinkt kurzzeitig)", 
+        act2: (h, staff) => { 
+          staff.speedMult = Math.max(0.5, staff.speedMult - 0.2);
+          log(`⚠️ [${h.name}] ${staff.name} musste trotz Krise fahren (Leistung gedrosselt).`); 
+        } 
+      },
+      { 
+        cat: "Privatleben", 
+        title: "Umzugs-Chaos im privaten Umfeld", 
+        desc: "Ein/e Mitarbeiter/in in {city} steht unerwartet vor einem Wohnungswechsel und droht, übermüdet zur Schicht zu erscheinen.", 
+        opt1: "Bezahlten Sonderurlaub für den Tag geben (-100 €)", 
+        act1: (h, staff) => { 
+          staff.status = 'personal_crisis'; 
+          staff.statusNote = 'Privater Umzug (Abwesend)';
+          gameState.money -= 100;
+          log(`📦 [${h.name}] ${staff.name} hat Sonderurlaub für den Umzug erhalten.`); 
+        }, 
+        opt2: "Spätere Schicht einrichten", 
+        act2: (h, staff) => { 
+          h.fill = Math.max(0, h.fill - 150);
+          log(`⏰ [${h.name}] Spätschicht für ${staff.name} eingerichtet.`); 
+        } 
+      },
+      // Lokale / Regionale Events
+      {
+        cat: "Lokales Event",
+        title: "Stadtfest & Straßensperren in der Region",
+        desc: "Wegen des großen Stadtfestes im Raum {city} ({region}) sind viele Zufahrten zu den Containern komplett blockiert.",
+        opt1: "Sondergenehmigung für Lieferverkehr kaufen (-200 €)",
+        act1: (h) => { gameState.money -= 200; log(`🎉 [${h.name}] Sondergenehmigung erworben (-200 €). Sammeln läuft normal.`); },
+        opt2: "Warten bis zum Ende des Fests (-400 kg Sammelmenge)",
+        act2: (h) => { h.fill = Math.max(0, h.fill - 400); log(`🎪 [${h.name}] Festeinbuße hingenommen (-400 kg).`); }
+      },
+      {
+        cat: "Lokales Event",
+        title: "Müllentsorgungs-Streik in der Region",
+        desc: "In der Region {region} streiken kommunale Betriebe, wodurch Bürger massenhaft Altkleider in unsere Container werfen!",
+        opt1: "Zusätzliche Schnell-Leerung anfordern (-300 €)",
+        act1: (h) => { gameState.money -= 300; h.fill = Math.min(9500, h.fill + 1000); log(`⚡ [${h.name}] Schnell-Leerung bezahlt (+1.000 kg geborgen).`); },
+        opt2: "Ansturm ignorieren und auf Überlauf warten",
+        act2: (h) => { h.fill = Math.min(9500, h.fill + 1500); log(`📈 [${h.name}] Extremes Aufkommen (+1.500 kg), Überlaufgefahr steigt!`); }
+      },
+      {
+        cat: "Wetter", 
+        title: "Starkregen & Wassereinbruch", 
+        desc: "In {city} ({region}) drängt Wasser in die Container. Die Textilien drohen zu verschimmeln.", 
+        opt1: "Trocknungs-Trupp anfordern (-250 €)", 
+        act1: (h) => { gameState.money -= 250; log(`☔ [${h.name}] Trocknung bezahlt (-250 €).`); }, 
+        opt2: "Nasse Ware als Restmüll aussortieren (-800 kg)", 
+        act2: (h) => { h.fill = Math.max(0, h.fill - 800); log(`🗑️ [${h.name}] 800kg feuchte Ware entsorgt.`); } 
+      },
+      { 
+        cat: "Vandalismus", 
+        title: "Graffiti & Sachbeschädigung", 
+        desc: "Vandalen haben die Kleidercontainer in {city} beschmiert und aufgebrochen.", 
+        opt1: "Sofort-Reinigung beauftragen (-350 €)", 
+        act1: (h) => { gameState.money -= 350; log(`✨ [${h.name}] Graffiti beseitigt (-350 €).`); }, 
+        opt2: "Ignorieren", 
+        act2: (h) => { h.fill = Math.max(0, h.fill - 300); log(`⚠️ [${h.name}] Sachschaden hingenommen.`); } 
+      },
+      { 
+        cat: "Logistik", 
+        title: "Autobahn-Vollsperrung", 
+        desc: "Ein schwerer Unfall blockiert die Zufahrtswege für den LKW in {city}.", 
+        opt1: "Umleitung nehmen", 
+        act1: (h) => { if(h.status === "SWAP_PENDING") h.swapTimer += 6; log(`🚗 [${h.name}] Umleitung genommen (+6h Verzögerung).`); }, 
+        opt2: "Express-Maut zahlen (-400 €)", 
+        act2: (h) => { gameState.money -= 400; log(`⚡ [${h.name}] Express-Maut bezahlt (-400 €).`); } 
+      }
     ];
 
     function triggerProceduralEvent() {
       const template = EVENT_TEMPLATES[Math.floor(Math.random() * EVENT_TEMPLATES.length)];
       const hub = gameState.hubs[Math.floor(Math.random() * gameState.hubs.length)];
-      showEventModal(`${template.cat}: ${template.title}`, hub.name, template.desc.replace("{city}", hub.name), [
-        { text: template.opt1, action: () => template.act1(hub) },
-        { text: template.opt2, action: () => template.act2(hub) }
+      const staff = hub.staff[Math.floor(Math.random() * hub.staff.length)];
+
+      let descFormatted = template.desc
+        .replace("{city}", hub.name)
+        .replace("{region}", hub.region);
+
+      showEventModal(`${template.cat}: ${template.title}`, `${hub.name} (${staff.name})`, descFormatted, [
+        { text: template.opt1, action: () => { if(template.act1.length === 2) template.act1(hub, staff); else template.act1(hub); } },
+        { text: template.opt2, action: () => { if(template.act2.length === 2) template.act2(hub, staff); else template.act2(hub); } }
       ]);
     }
 
     function showEventModal(title, location, desc, choices) {
       gameState.isPaused = true;
       document.getElementById("event-title").innerText = title;
-      document.getElementById("event-location").innerText = `Standort: ${location}`;
+      document.getElementById("event-location").innerText = `Standort / Person: ${location}`;
       document.getElementById("event-desc").innerText = desc;
 
       const choicesBox = document.getElementById("event-choices");
@@ -470,6 +621,7 @@
           c.action();
           document.getElementById("modal-event").classList.add("hidden");
           gameState.isPaused = false;
+          updateUI();
         };
         choicesBox.appendChild(btn);
       });
@@ -506,31 +658,7 @@
 
       // HR Modal
       document.getElementById("btn-hr").onclick = () => {
-        const hrList = document.getElementById("hr-list");
-        hrList.innerHTML = "";
-        gameState.hubs.forEach(h => {
-          const row = document.createElement("div");
-          row.className = "bg-slate-800 p-3 rounded border border-slate-700 space-y-2";
-          let staffHtml = h.staff.map((s, sIdx) => `
-            <div class="flex justify-between items-center text-xs bg-slate-900/50 p-2 rounded">
-              <div>
-                <span class="font-bold text-white">${s.name}</span>
-                <span class="text-slate-400 block">Motivation: ${s.motivation} (Faktor ${s.speedMult})</span>
-              </div>
-              <button onclick="fireStaff(${h.id}, ${sIdx})" class="bg-red-900/80 hover:bg-red-700 text-red-200 px-2 py-1 rounded">Entlassen</button>
-            </div>
-          `).join("");
-
-          row.innerHTML = `
-            <div class="flex justify-between items-center">
-              <span class="font-bold text-white text-sm">${h.name}</span>
-              <button onclick="hireStaff(${h.id})" class="bg-green-600 hover:bg-green-500 text-white font-bold px-3 py-1 rounded text-xs">+ Fahrer einstellen</button>
-            </div>
-            <div class="space-y-1">${staffHtml}</div>
-          `;
-          hrList.appendChild(row);
-        });
-        document.getElementById("modal-hr").classList.remove("hidden");
+        openHRModal();
       };
       document.querySelector(".close-hr").onclick = () => document.getElementById("modal-hr").classList.add("hidden");
 
@@ -579,12 +707,62 @@
       };
     });
 
+    function openHRModal() {
+      const hrList = document.getElementById("hr-list");
+      hrList.innerHTML = "";
+      gameState.hubs.forEach(h => {
+        const row = document.createElement("div");
+        row.className = "bg-slate-800 p-3 rounded border border-slate-700 space-y-2";
+        let staffHtml = h.staff.map((s, sIdx) => {
+          let statusBadge = s.status === 'active' 
+            ? `<span class="text-green-400">● Im Einsatz</span>` 
+            : `<span class="text-amber-400">● ${s.statusNote}</span>`;
+
+          return `
+            <div class="flex justify-between items-center text-xs bg-slate-900/50 p-2 rounded">
+              <div>
+                <span class="font-bold text-white">${s.gender === 'w' ? '👩' : '👨'} ${s.name}</span>
+                <span class="text-slate-400 block">Motivation: ${s.motivation} (Faktor ${s.speedMult}) | Status: ${statusBadge}</span>
+              </div>
+              <div class="flex gap-1">
+                ${s.status !== 'active' ? `<button onclick="reactivateStaff(${h.id},${sIdx})" class="bg-blue-900/80 hover:bg-blue-700 text-blue-200 px-2 py-1 rounded">Freigeben</button>` : ''}
+                <button onclick="fireStaff(${h.id}, ${sIdx})" class="bg-red-900/80 hover:bg-red-700 text-red-200 px-2 py-1 rounded">Entlassen</button>
+              </div>
+            </div>
+          `;
+        }).join("");
+
+        row.innerHTML = `
+          <div class="flex justify-between items-center">
+            <div>
+              <span class="font-bold text-white text-sm">${h.name}</span>
+              <span class="text-[10px] text-slate-400 block">${h.region}</span>
+            </div>
+            <button onclick="hireStaff(${h.id})" class="bg-green-600 hover:bg-green-500 text-white font-bold px-3 py-1 rounded text-xs">+ Fahrer einstellen</button>
+          </div>
+          <div class="space-y-1">${staffHtml}</div>
+        `;
+        hrList.appendChild(row);
+      });
+      document.getElementById("modal-hr").classList.remove("hidden");
+    }
+
+    function reactivateStaff(hubId, staffIdx) {
+      const hub = gameState.hubs[hubId];
+      const s = hub.staff[staffIdx];
+      s.status = 'active';
+      s.statusNote = 'Im Einsatz';
+      log(`👥 [${hub.name}] ${s.name} ist wieder im aktiven Dienst.`);
+      openHRModal();
+      updateUI();
+    }
+
     function hireStaff(hubId) {
       const hub = gameState.hubs[hubId];
       if(hub.staff.length < 4) {
         hub.staff.push(createStaff());
         log(`👥 [${hub.name}] Neuer Fahrer eingestellt.`);
-        document.getElementById("btn-hr").click();
+        openHRModal();
         updateUI();
       }
     }
@@ -594,10 +772,10 @@
       if(hub.staff.length > 1) {
         const fired = hub.staff.splice(staffIdx, 1)[0];
         log(`👥 [${hub.name}] Fahrer ${fired.name} entlassen.`);
-        document.getElementById("btn-hr").click();
+        openHRModal();
         updateUI();
       } else {
-        log(`⚠️ [${hub.name}] Mindestens ein Fahrer muss am Standort verbleiben!`);
+        log(`⚠️ [${hub.name}] Mindestens ein Fahrer muss im Personalstamm verbleiben!`);
       }
     }
   </script>
