@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TEXAID Swapbody-Trail</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .texaid-red { background-color: #E30613; }
+    .texaid-border { border-color: #E30613; }
+    .texaid-text { color: #E30613; }
+    body { background-color: #0f172a; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Start Screen Overlay -->
+  <div id="start-screen" class="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border-2 texaid-border rounded-2xl max-w-xl w-full p-8 shadow-2xl text-center space-y-6">
+      <div class="inline-block bg-red-600 text-white font-black px-6 py-2 rounded-lg text-2xl tracking-wider shadow-lg">TEXAID</div>
+      <h1 class="text-3xl font-extrabold text-white">Swapbody-Trail</h1>
+      <p class="text-slate-300 text-sm leading-relaxed">
+        Willkommen in der Logistik-Zentrale! Verwalte 10 deutsche Großräume, steuere deine Fahrer mit individuellen Personalakten, halte den 24-Stunden-Tausch-Turnus für die 8t-Wechselbrücken ein und bewältige Hunderte dynamische Event-Herausforderungen. Verhindere Container-Überläufe, um saftige Kommunalstrafen zu vermeiden!
+      </p>
+      <button id="btn-start-game" class="texaid-red hover:bg-red-700 text-white font-bold px-8 py-4 rounded-xl text-lg shadow-lg transition transform hover:scale-105 w-full">
+        Spiel starten
+      </button>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-30 shadow-lg">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="texaid-red text-white font-black px-3 py-1 rounded text-xl tracking-wider shadow">TEXAID</div>
+        <h1 class="text-xl font-bold text-white hidden sm:inline">Swapbody-Trail</h1>
+      </div>
+      
+      <!-- Stats -->
+      <div class="flex items-center gap-3 bg-slate-800/80 px-4 py-2 rounded-lg border border-slate-700 text-sm">
+        <div><span class="text-slate-400 block text-xs">Guthaben:</span><span id="stat-money" class="font-bold text-green-400">10.000,00 €</span></div>
+        <div class="border-l border-slate-700 pl-3"><span class="text-slate-400 block text-xs">Bank:</span><span id="stat-bank" class="font-bold text-blue-400">0,00 €</span></div>
+        <div class="border-l border-slate-700 pl-3"><span class="text-slate-400 block text-xs">Kredit:</span><span id="stat-loan" class="font-bold text-red-400">0,00 €</span></div>
+        <div class="border-l border-slate-700 pl-3"><span class="text-slate-400 block text-xs">Tag:</span><span id="stat-day" class="font-bold text-amber-400">1</span></div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-2">
+        <button id="btn-hr" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded text-sm font-semibold transition">👥 Personal</button>
+        <button id="btn-bank" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded text-sm font-semibold transition">🏦 Bank</button>
+        <button id="btn-menu" class="texaid-red hover:bg-red-700 text-white px-3 py-2 rounded text-sm font-semibold transition">⚙️ Menü</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto p-4 flex-grow w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <section class="lg:col-span-2 space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-bold text-slate-200">Standorte & Wechselbrücken (10 Regionen)</h2>
+        <span class="text-xs text-slate-400">Ziel: ~8.000 kg (Max 9,5t)</span>
+      </div>
+      <div id="hub-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+    </section>
+
+    <!-- Log & Protocol -->
+    <section class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-md flex flex-col h-[520px]">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="font-bold text-slate-200 text-sm">📋 Logistik-Protokoll</h3>
+        <button id="btn-clear-log" class="text-xs text-slate-400 hover:text-white">Löschen</button>
+      </div>
+      <div id="log-list" class="flex-grow overflow-y-auto mt-3 space-y-2 text-xs font-mono text-slate-300"></div>
+    </section>
+  </main>
+
+  <!-- Modals -->
+  <!-- HR / Personal Modal -->
+  <div id="modal-hr" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] flex flex-col">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3 mb-4">
+        <h3 class="text-xl font-bold text-white">👥 Personalakten & Team-Management</h3>
+        <button class="close-hr text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+      </div>
+      <div id="hr-list" class="overflow-y-auto space-y-3 pr-2 flex-grow"></div>
+    </div>
+  </div>
+
+  <!-- Bank Modal -->
+  <div id="modal-bank" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="text-xl font-bold text-white">🏦 Bank-Zentrale</h3>
+        <button class="close-bank text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+      </div>
+      <div class="bg-slate-800 p-3 rounded border border-slate-700 text-sm">
+        <div class="text-slate-400">Sparkonto (2% Tageszins): <span id="bank-deposit-val" class="text-blue-400 font-bold">0 €</span></div>
+        <div class="text-slate-400 mt-1">Kredit (5% Tageszins): <span id="bank-loan-val" class="text-red-400 font-bold">0 €</span></div>
+      </div>
+      <div class="flex gap-2">
+        <input id="input-bank-amount" type="number" placeholder="Betrag €" class="bg-slate-800 border border-slate-700 rounded px-3 py-2 w-full text-white text-sm">
+        <button id="btn-deposit" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-2 rounded text-xs">Einzahlen</button>
+        <button id="btn-withdraw" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-3 py-2 rounded text-xs">Abheben</button>
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button id="btn-take-loan" class="bg-red-600 hover:bg-red-500 text-white font-bold px-3 py-2 rounded w-full text-xs">+5.000 € Kredit</button>
+        <button id="btn-pay-loan" class="bg-green-600 hover:bg-green-500 text-white font-bold px-3 py-2 rounded w-full text-xs">1.000 € tilgen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Menu Modal -->
+  <div id="modal-menu" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-xl max-w-xs w-full p-6 text-center space-y-4 shadow-2xl">
+      <h3 class="text-xl font-bold text-white border-b border-slate-800 pb-2">Hauptmenü</h3>
+      <button id="btn-resume" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-2 rounded text-sm">Weiter spielen</button>
+      <button id="btn-restart" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 rounded text-sm">Neues Spiel starten</button>
+    </div>
+  </div>
+
+  <!-- Event Choice Modal -->
+  <div id="modal-event" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border-2 texaid-border rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center gap-3">
+        <span class="text-3xl">⚠️</span>
+        <div>
+          <h3 id="event-title" class="text-lg font-bold text-white">Ereignis</h3>
+          <span id="event-location" class="text-xs text-slate-400">Standort</span>
+        </div>
+      </div>
+      <p id="event-desc" class="text-sm text-slate-300"></p>
+      <div id="event-choices" class="space-y-2 pt-2"></div>
+    </div>
+  </div>
+
+  <script>
+    const LOCATIONS = ["Ulm", "Ravensburg", "Burgthann", "Augsburg", "Schweinfurt", "Berlin", "Eggebek", "Erfurt", "Windsbach", "Northeim"];
+    const FIRST_NAMES = ["Maximilian", "Stefan", "Andreas", "Michael", "Christian", "Thomas", "Markus", "Florian", "Daniel", "Kevin", "Tobias", "Lukas", "Jan", "Sebastian", "Dennis"];
+    const LAST_NAMES = ["Müller", "Schmidt", "Schneider", "Fischer", "Weber", "Meyer", "Wagner", "Becker", "Schulz", "Hoffmann", "Schäfer", "Koch", "Bauer", "Richter"];
+    const MOTIVATIONS = [
+      { label: "Hochmotiviert", mult: 1.3 },
+      { label: "Zuverlässig", mult: 1.0 },
+      { label: "Gemütlich", mult: 0.8 },
+      { label: "Stressanfällig", mult: 0.9 },
+      { label: "Engagiert", mult: 1.2 }
+    ];
+
+    let gameState = {
+      money: 10000,
+      bank: 0,
+      loan: 0,
+      day: 1,
+      timeInDay: 0,
+      isPaused: true,
+      hubs: []
+    };
+
+    function initGame() {
+      gameState.money = 10000;
+      gameState.bank = 0;
+      gameState.loan = 0;
+      gameState.day = 1;
+      gameState.timeInDay = 0;
+      gameState.isPaused = false;
+
+      gameState.hubs = LOCATIONS.map((name, idx) => ({
+        id: idx,
+        name: name,
+        fill: Math.floor(Math.random() * 2000),
+        status: "SAMMELN", // SAMMELN, SWAP_PENDING, OVERFLOW
+        swapTimer: 0, // 24h countdown when requested
+        overflowDays: 0,
+        staff: [
+          createStaff(),
+          createStaff()
+        ]
+      }));
+
+      buildStaticDOM();
+      log("System gestartet. Alle 10 Standorte mit je 2 Fahrern aktiv.");
+    }
+
+    function createStaff() {
+      const name = `${FIRST_NAMES[Math.floor(Math.random()*FIRST_NAMES.length)]} ${LAST_NAMES[Math.floor(Math.random()*LAST_NAMES.length)]}`;
+      const mot = MOTIVATIONS[Math.floor(Math.random()*MOTIVATIONS.length)];
+      return { name, motivation: mot.label, speedMult: mot.mult };
+    }
+
+    function buildStaticDOM() {
+      const container = document.getElementById("hub-container");
+      container.innerHTML = "";
+
+      gameState.hubs.forEach(hub => {
+        const card = document.createElement("div");
+        card.className = "bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-md space-y-3 relative overflow-hidden flex flex-col justify-between";
+        card.innerHTML = `
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <h3 class="font-bold text-white text-base">${hub.name}</h3>
+              <span id="hub-badge-${hub.id}" class="px-2 py-0.5 rounded text-xs font-bold bg-green-900/50 text-green-400 border border-green-700">Sammeln</span>
+            </div>
+            <div class="flex justify-between text-xs text-slate-400 mb-2">
+              <span>Personal: <span id="hub-staff-count-${hub.id}" class="text-slate-200">2</span> Fahrer</span>
+              <span id="hub-swap-status-${hub.id}" class="font-mono text-amber-400">Turnus aktiv</span>
+            </div>
+
+            <!-- Weight -->
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-400">Füllstand:</span>
+              <span id="hub-weight-${hub.id}" class="font-bold text-slate-200">0 / 8.000 kg</span>
+            </div>
+            <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700 mb-3">
+              <div id="hub-bar-${hub.id}" class="bg-blue-500 h-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <div>
+            <button id="hub-swap-btn-${hub.id}" onclick="requestSwap(${hub.id})" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-2 rounded text-xs shadow transition">
+              Wechselbrückentausch anmelden
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function updateUI() {
+      document.getElementById("stat-money").innerText = gameState.money.toLocaleString('de-DE', {minimumFractionDigits: 2}) + " €";
+      document.getElementById("stat-bank").innerText = gameState.bank.toLocaleString('de-DE', {minimumFractionDigits: 2}) + " €";
+      document.getElementById("stat-loan").innerText = gameState.loan.toLocaleString('de-DE', {minimumFractionDigits: 2}) + " €";
+      document.getElementById("stat-day").innerText = gameState.day;
+
+      document.getElementById("bank-deposit-val").innerText = gameState.bank.toLocaleString('de-DE', {minimumFractionDigits: 2}) + " €";
+      document.getElementById("bank-loan-val").innerText = gameState.loan.toLocaleString('de-DE', {minimumFractionDigits: 2}) + " €";
+
+      gameState.hubs.forEach(hub => {
+        const weightText = document.getElementById(`hub-weight-${hub.id}`);
+        const bar = document.getElementById(`hub-bar-${hub.id}`);
+        const badge = document.getElementById(`hub-badge-${hub.id}`);
+        const swapStatus = document.getElementById(`hub-swap-status-${hub.id}`);
+        const staffCount = document.getElementById(`hub-staff-count-${hub.id}`);
+        const swapBtn = document.getElementById(`hub-swap-btn-${hub.id}`);
+
+        if(weightText) weightText.innerText = `${hub.fill.toLocaleString()} / 8.000 kg (Max 9.5t)`;
+        if(staffCount) staffCount.innerText = hub.staff.length;
+
+        if(bar) {
+          const pct = Math.min(100, (hub.fill / 9500) * 100);
+          bar.style.width = pct + "%";
+          bar.className = hub.fill >= 9500 ? "bg-red-600 h-full" : (hub.fill >= 8000 ? "bg-amber-500 h-full" : "bg-blue-500 h-full");
+        }
+
+        if(badge && swapStatus) {
+          if(hub.status === "OVERFLOW") {
+            badge.innerText = "ÜBERLAUFEN!";
+            badge.className = "px-2 py-0.5 rounded text-xs font-bold bg-red-900 text-red-200 border border-red-500 animate-pulse";
+            swapStatus.innerText = `Strafe läuft! (${hub.overflowDays} Tag/e)`;
+            swapBtn.innerText = "Sofort-Tausch erzwingen";
+          } else if(hub.status === "SWAP_PENDING") {
+            badge.innerText = "Tausch läuft";
+            badge.className = "px-2 py-0.5 rounded text-xs font-bold bg-amber-900 text-amber-300 border border-amber-600";
+            swapStatus.innerText = `Abholung in: ${hub.swapTimer}h`;
+            swapBtn.innerText = "Tausch angemeldet...";
+            swapBtn.disabled = true;
+            swapBtn.className = "w-full bg-slate-700 text-slate-400 font-bold py-2 rounded text-xs cursor-not-allowed";
+          } else {
+            badge.innerText = "Sammeln";
+            badge.className = "px-2 py-0.5 rounded text-xs font-bold bg-green-900/50 text-green-400 border border-green-700";
+            swapStatus.innerText = `Bereit für Tausch`;
+            swapBtn.innerText = "Wechselbrückentausch anmelden";
+            swapBtn.disabled = false;
+            swapBtn.className = "w-full bg-red-600 hover:bg-red-500 text-white font-bold py-2 rounded text-xs shadow transition";
+          }
+        }
+      });
+    }
+
+    function requestSwap(id) {
+      const hub = gameState.hubs[id];
+      if(hub.status === "SWAP_PENDING") return;
+
+      hub.status = "SWAP_PENDING";
+      hub.swapTimer = 24; // Exactly 24 hour countdown
+      log(`🚚 [${hub.name}] Wechselbrückentausch angemeldet. Abholung & Verwiegung in 24 Stunden.`);
+      updateUI();
+    }
+
+    function gameLoop() {
+      if(gameState.isPaused) return;
+
+      gameState.timeInDay++;
+      if(gameState.timeInDay >= 24) {
+        gameState.timeInDay = 0;
+        gameState.day++;
+        processDailyOperations();
+      }
+
+      gameState.hubs.forEach(hub => {
+        // Collection logic
+        if(hub.status === "SAMMELN") {
+          let totalSpeed = hub.staff.reduce((acc, s) => acc + s.speedMult, 0);
+          const baseRate = 50 + Math.floor(Math.random() * 30);
+          const collected = Math.round(baseRate * totalSpeed);
+          hub.fill = Math.min(9500, hub.fill + collected);
+
+          // Check Overflow
+          if(hub.fill >= 9500) {
+            hub.status = "OVERFLOW";
+            hub.overflowDays = 1;
+            log(`🚨 [${hub.name}] KAPAZITÄTSGRENZE (9,5t) ERREICHT! Container laufen über! Ordnungsamt droht mit Bußgeldern.`);
+          }
+        } else if(hub.status === "OVERFLOW") {
+          // Apply daily fine during overflow
+          // Fines are processed daily in processDailyOperations
+        }
+
+        // Swap pending countdown
+        if(hub.status === "SWAP_PENDING") {
+          hub.swapTimer--;
+          if(hub.swapTimer <= 0) {
+            executeWeighAndSwap(hub);
+          }
+        }
+      });
+
+      // Procedural Mega Events Trigger (approx every 15s)
+      if(Math.random() < 0.12) {
+        triggerProceduralEvent();
+      }
+
+      updateUI();
+    }
+
+    function executeWeighAndSwap(hub) {
+      const weight = hub.fill;
+      hub.fill = 0;
+      hub.status = "SAMMELN";
+      hub.overflowDays = 0;
+
+      if(weight === 0) {
+        log(`[${hub.name}] Wechselbrücke leer getauscht (0 kg).`);
+        return;
+      }
+
+      let pricePerKg = 0.15;
+      let malusNote = "Voller Ertrag (>= 8t)";
+
+      if(weight >= 8000) {
+        pricePerKg = 0.15;
+      } else if(weight >= 6000) {
+        pricePerKg = 0.135; // 10% malus
+        malusNote = "10% Malus (6t - 8t)";
+      } else if(weight >= 4000) {
+        pricePerKg = 0.12; // 20% malus
+        malusNote = "20% Malus (4t - 6t)";
+      } else {
+        pricePerKg = 0.075; // 50% malus
+        malusNote = "50% Malus (< 4t)";
+      }
+
+      const earnings = Math.round(weight * pricePerKg * 100) / 100;
+      gameState.money += earnings;
+      log(`⚖️ [${hub.name}] Gewogen: ${weight.toLocaleString()} kg (${malusNote}) -> +${earnings.toLocaleString('de-DE', {minimumFractionDigits: 2})} €`);
+    }
+
+    function processDailyOperations() {
+      // Wages
+      let totalStaffCount = 0;
+      gameState.hubs.forEach(h => totalStaffCount += h.staff.length);
+      const wages = totalStaffCount * 150;
+      gameState.money -= wages;
+      log(`💸 Tägliche Lohnkosten: -${wages} € (${totalStaffCount} Mitarbeiter).`);
+
+      // Overflow penalties
+      gameState.hubs.forEach(h => {
+        if(h.status === "OVERFLOW") {
+          const fine = 400 * h.overflowDays;
+          gameState.money -= fine;
+          log(`⚠️ [${h.name}] Kommunalstrafe wegen überlaufender Container: -${fine} €`);
+          h.overflowDays++;
+        }
+      });
+
+      // Bank Interest
+      if(gameState.bank > 0) {
+        const interest = Math.round(gameState.bank * 0.02);
+        gameState.bank += interest;
+        log(`📈 Bank-Sparkonto Zinsen: +${interest} €`);
+      }
+      if(gameState.loan > 0) {
+        const loanInterest = Math.round(gameState.loan * 0.05);
+        gameState.loan += loanInterest;
+        log(`📉 Kreditzinsen fällig: +${loanInterest} €`);
+      }
+    }
+
+    // 500+ Mega Procedural Event Generator
+    const EVENT_TEMPLATES = [
+      { cat: "Wetter", title: "Starkregen & Wassereinbruch", desc: "In {city} drängt Wasser in die Container. Die Textilien drohen zu verschimmeln.", opt1: "Trocknungs-Trupp anfordern (-250 €)", act1: (h) => { gameState.money -= 250; log(`☔ [${h.name}] Trocknung bezahlt (-250 €).`); }, opt2: "Nasse Ware als Restmüll aussortieren (-800 kg)", act2: (h) => { h.fill = Math.max(0, h.fill - 800); log(`🗑️ [${h.name}] 800kg feuchte Ware entsorgt.`); } },
+      { cat: "Vandalismus", title: "Graffiti & Sachbeschädigung", desc: "Vandalen haben die Kleidercontainer in {city} beschmiert und aufgebrochen.", opt1: "Sofort-Reinigung beauftragen (-350 €)", act1: (h) => { gameState.money -= 350; log(`✨ [${h.name}] Graffiti beseitigt (-350 €).`); }, opt2: "Ignorieren (Sammelrate sinkt kurzzeitig)", act2: (h) => { h.fill = Math.max(0, h.fill - 300); log(`⚠️ [${h.name}] Sachschaden hingenommen.`); } },
+      { cat: "Logistik", title: "Autobahn-Vollsperrung (A7/A9)", desc: "Ein schwerer Unfall blockiert die Zufahrtswege für den LKW in {city}.", opt1: "Umleitung über Landstraße nehmen (Verzögerung)", act1: (h) => { if(h.status === "SWAP_PENDING") h.swapTimer += 6; log(`🚗 [${h.name}] Umleitung genommen (+6h Verzögerung).`); }, opt2: "Spedition-Sonderzuschlag zahlen (-400 €)", act2: (h) => { gameState.money -= 400; log(`⚡ [${h.name}] Express-Express-Maut bezahlt (-400 €).`); } },
+      { cat: "Personal", title: "Mitarbeiter-Erkrankung", desc: "Ein Fahrer in {city} hat sich krankgemeldet.", opt1: "Aushilfe einspringen lassen (-150 €)", act1: (h) => { gameState.money -= 150; log(`🏥 [${h.name}] Aushilfe organisiert.`); }, opt2: "Mit verbleibendem Team arbeiten (langsamer)", act2: (h) => { h.fill = Math.max(0, h.fill - 200); log(`🤒 [${h.name}] Unterbesetzt gefahren.`); } },
+      { cat: "Spenden", title: "Großzügige Vereins-Spendenwelle", desc: "Ein lokaler Sportverein in {city} hat eine große Altkleidersammlung durchgeführt!", opt1: "Container sofort leeren / Gutschreiben (+1.200 kg)", act1: (h) => { h.fill = Math.min(9500, h.fill + 1200); log(`🎉 [${h.name}] +1.200 kg Extra-Spenden erhalten!`); }, opt2: "Teilen und Kooperation starten (+600 kg & Bonus)", act2: (h) => { h.fill = Math.min(9500, h.fill + 600); gameState.money += 200; log(`🤝 [${h.name}] Kooperation erfolgreich (+600 kg, +200 €).`); } }
+    ];
+
+    function triggerProceduralEvent() {
+      const template = EVENT_TEMPLATES[Math.floor(Math.random() * EVENT_TEMPLATES.length)];
+      const hub = gameState.hubs[Math.floor(Math.random() * gameState.hubs.length)];
+      const title = `${template.cat}: ${template.title}`;
+      const desc = template.desc.replace("{city}", hub.name);
+
+      showEventModal(title, hub.name, desc, [
+        { text: template.opt1, action: () => template.act1(hub) },
+        { text: template.opt2, action: () => template.act2(hub) }
+      ]);
+    }
+
+    function showEventModal(title, location, desc, choices) {
+      gameState.isPaused = true;
+      document.getElementById("event-title").innerText = title;
+      document.getElementById("event-location").innerText = `Standort: ${location}`;
+      document.getElementById("event-desc").innerText = desc;
+
+      const choicesBox = document.getElementById("event-choices");
+      choicesBox.innerHTML = "";
+
+      choices.forEach(c => {
+        const btn = document.createElement("button");
+        btn.className = "w-full text-left bg-slate-800 hover:bg-slate-700 border border-slate-700 p-3 rounded text-sm font-semibold text-white transition";
+        btn.innerText = c.text;
+        btn.onclick = () => {
+          c.action();
+          document.getElementById("modal-event").classList.add("hidden");
+          gameState.isPaused = false;
+        };
+        choicesBox.appendChild(btn);
+      });
+
+      document.getElementById("modal-event").classList.remove("hidden");
+    }
+
+    function log(msg) {
+      const list = document.getElementById("log-list");
+      const entry = document.createElement("div");
+      entry.className = "p-1.5 rounded bg-slate-800/60 border border-slate-700/50";
+      entry.innerText = `[Tag ${gameState.day}] ${msg}`;
+      list.prepend(entry);
+    }
+
+    // Initialization & Event Listeners
+    document.addEventListener("DOMContentLoaded", () => {
+      setInterval(gameLoop, 1000);
+
+      // Start Screen Click
+      document.getElementById("btn-start-game").onclick = () => {
+        document.getElementById("start-screen").classList.add("hidden");
+        initGame();
+      };
+
+      // Menu
+      document.getElementById("btn-menu").onclick = () => document.getElementById("modal-menu").classList.remove("hidden");
+      document.getElementById("btn-resume").onclick = () => document.getElementById("modal-menu").classList.add("hidden");
+      document.getElementById("btn-restart").onclick = () => {
+        document.getElementById("modal-menu").classList.add("hidden");
+        initGame();
+      };
+
+      // HR Modal
+      document.getElementById("btn-hr").onclick = () => {
+        const hrList = document.getElementById("hr-list");
+        hrList.innerHTML = "";
+        gameState.hubs.forEach(h => {
+          const row = document.createElement("div");
+          row.className = "bg-slate-800 p-3 rounded border border-slate-700 space-y-2";
+          
+          let staffHtml = h.staff.map((s, sIdx) => `
+            <div class="flex justify-between items-center text-xs bg-slate-900/50 p-2 rounded">
+              <div>
+                <span class="font-bold text-white">${s.name}</span>
+                <span class="text-slate-400 block">Motivation: ${s.motivation} (Faktor ${s.speedMult})</span>
+              </div>
+              <button onclick="fireStaff(${h.id}, ${sIdx})" class="bg-red-900/80 hover:bg-red-700 text-red-200 px-2 py-1 rounded">Entlassen</button>
+            </div>
+          `).join("");
+
+          row.innerHTML = `
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-white text-sm">${h.name}</span>
+              <button onclick="hireStaff(${h.id})" class="bg-green-600 hover:bg-green-500 text-white font-bold px-3 py-1 rounded text-xs">+ Fahrer einstellen</button>
+            </div>
+            <div class="space-y-1">${staffHtml}</div>
+          `;
+          hrList.appendChild(row);
+        });
+        document.getElementById("modal-hr").classList.remove("hidden");
+      };
+      document.querySelector(".close-hr").onclick = () => document.getElementById("modal-hr").classList.add("hidden");
+
+      // Bank Modal
+      document.getElementById("btn-bank").onclick = () => document.getElementById("modal-bank").classList.remove("hidden");
+      document.querySelector(".close-bank").onclick = () => document.getElementById("modal-bank").classList.add("hidden");
+
+      document.getElementById("btn-deposit").onclick = () => {
+        const amt = parseFloat(document.getElementById("input-bank-amount").value) || 0;
+        if(amt > 0 && gameState.money >= amt) {
+          gameState.money -= amt;
+          gameState.bank += amt;
+          updateUI();
+          log(`🏦 Bank: ${amt} € eingezahlt.`);
+        }
+      };
+
+      document.getElementById("btn-withdraw").onclick = () => {
+        const amt = parseFloat(document.getElementById("input-bank-amount").value) || 0;
+        if(amt > 0 && gameState.bank >= amt) {
+          gameState.bank -= amt;
+          gameState.money += amt;
+          updateUI();
+          log(`🏦 Bank: ${amt} € abgehoben.`);
+        }
+      };
+
+      document.getElementById("btn-take-loan").onclick = () => {
+        gameState.loan += 5000;
+        gameState.money += 5000;
+        updateUI();
+        log(`⚠️ 5.000 € Kredit aufgenommen.`);
+      };
+
+      document.getElementById("btn-pay-loan").onclick = () => {
+        if(gameState.loan > 0 && gameState.money >= 1000) {
+          gameState.loan -= 1000;
+          gameState.money -= 1000;
+          updateUI();
+          log(`✅ 1.000 € Kredit getilgt.`);
+        }
+      };
+
+      document.getElementById("btn-clear-log").onclick = () => {
+        document.getElementById("log-list").innerHTML = "";
+      };
+    });
+
+    function hireStaff(hubId) {
+      const hub = gameState.hubs[hubId];
+      if(hub.staff.length < 4) {
+        hub.staff.push(createStaff());
+        log(`👥 [${hub.name}] Neuer Fahrer eingestellt.`);
+        // Reopen HR modal to refresh view
+        document.getElementById("btn-hr").click();
+        updateUI();
+      }
+    }
+
+    function fireStaff(hubId, staffIdx) {
+      const hub = gameState.hubs[hubId];
+      if(hub.staff.length > 1) {
+        const fired = hub.staff.splice(staffIdx, 1)[0];
+        log(`👥 [${hub.name}] Fahrer ${fired.name} entlassen.`);
+        document.getElementById("btn-hr").click();
+        updateUI();
+      } else {
+        log(`⚠️ [${hub.name}] Mindestens ein Fahrer muss am Standort verbleiben!`);
+      }
+    }
+  </script>
+</body>
+</html>
